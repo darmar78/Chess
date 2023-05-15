@@ -1,0 +1,121 @@
+#You have provided a Python script that simulates a chess game between two engines using an opening book, as well as a function to save multiple games to a PGN file. 
+#Here is the modified code with the provided `save_game_to_pgn` function integrated:
+
+#```python
+import chess
+import chess.engine
+import chess.pgn
+import chess.polyglot
+import time
+from io import StringIO
+import pygame  # Add this line
+import random
+
+def get_piece_name(piece):
+    if piece.color == chess.WHITE:
+        color = "w"
+    else:
+        color = "b"
+
+    return color + piece.symbol().lower()
+
+def display_move(move: chess.Move, board: chess.Board) -> None:
+    turn_name = "White" if board.turn == chess.WHITE else "Black"
+    move_san = board.san(move)  # Get SAN of the move before pushing it
+    print("{} played: {}".format(turn_name, move_san))
+
+def load_images():
+    images = {}
+    pieces = ['wp', 'wr', 'wn', 'wb', 'wq', 'wk',
+              'bp', 'br', 'bn', 'bb', 'bq', 'bk']
+    for piece in pieces:
+        images[piece] = pygame.image.load(f"Resources/{piece}.png")
+    return images
+
+def draw_board(screen, board, images):
+    for rank in range(8):
+        for file in range(8):
+            rotated_file = 7 - rank  
+            rotated_rank = file  
+            
+            square = (rotated_rank, rotated_file)
+            sqr_color = (
+                (218, 233, 242) if (rank + file) % 2 == 0 else (110, 153, 192))
+            sqr_rect = pygame.Rect(rotated_file * 100, rotated_rank * 100, 100, 100)
+            pygame.draw.rect(screen, sqr_color, sqr_rect)
+            piece = board.piece_at(chess.square(rank, file))
+            if piece:
+                img = images[get_piece_name(piece)]
+                screen.blit(img, sqr_rect.topleft)
+    pygame.display.flip()
+
+opening_book_path = "C:\\Users\\Public\\Documents\\mainbook.bin"
+
+def get_book_move(board):
+    with chess.polyglot.open_reader(opening_book_path) as reader:
+        entries = list(reader.find_all(board))
+        if entries:
+            return random.choice(entries).move
+    return None
+
+def save_game_to_pgn(board):
+    new_game = chess.pgn.Game.from_board(board)
+
+    new_game.headers["White"] = "{}".format(engine1.id["name"]) # Add this line
+    new_game.headers["Black"] = "{}".format(engine2.id["name"]) # Add this line
+
+    with open("game.pgn", "r") as pgn_file:
+        games = [chess.pgn.read_game(pgn_file) for _ in pgn_file]
+
+    games.append(new_game)
+
+    with open("game.pgn", "w") as pgn_file:
+        for game in games:
+            pgn_file.write(str(game) + "\n\n")
+
+pygame.init()  # Add this line
+screen = pygame.display.set_mode((800, 800))  # Add this line
+pygame.display.set_caption("Chess Game")  # Add this line
+
+
+engine1 = chess.engine.SimpleEngine.popen_uci("C:\\Users\\Public\\Documents\\dragon-3.2-64bit.exe")
+engine2 = chess.engine.SimpleEngine.popen_uci("C:\\Users\\Public\\Documents\\stockfish_23050720_x64_modern.exe")
+board = chess.Board()
+
+# Use opening book for first few moves
+for i in range(200):
+    book_move = get_book_move(board)
+    if book_move:
+        san_move = board.san(book_move)
+        board.push(book_move)
+        print(board)
+    else:
+        break
+
+running = True  # Add this line
+while running: # Replace while with running
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    if not board.is_game_over():
+        current_engine = engine1 if board.turn == chess.WHITE else engine2
+        engine_move = current_engine.play(board, limit=chess.engine.Limit(time=2.1))
+        display_move(engine_move.move, board)
+        board.push(engine_move.move)
+        images = load_images()  # Add this line
+        draw_board(screen, board, images)  # Add this line
+        time.sleep(1.1)
+    else:
+        save_game_to_pgn(board)  
+        engine1.quit()
+        engine2.quit()
+        break
+#```
+
+#Da, Polyglot opening book (bin book) može igrati random poteze iz svoje baze otvaranja. U vašem kodu otvaranje čita otvaranja iz otvarajuće knjige i igra potez iz nje.
+#Ako želite da potezi budu nasumični, možete dodati nasumičnost prilikom izbora poteza iz knjige otvaranja.
+
+
+#Ovde smo uvezli `random` modul i funkcija `get_book_move()` sada vraća nasumični potez iz knjige otvaranja (umesto prvog koji nađe), ukoliko postoje potezi u datom kontekstu. 
+#Ako nema poteza u kontekstu trenutne pozicije, funkcija će vratiti `None`.
